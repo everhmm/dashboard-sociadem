@@ -1,39 +1,264 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { 
-  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
-  PieChart, Pie, Sector, ScatterChart, Scatter, ZAxis
-} from 'recharts';
-import { 
-  Users, Ticket, TrendingUp, Loader2, RefreshCw, AlertCircle, 
-  Trophy, BarChart3, ListChecks, PieChart as PieIcon, 
-  Search, LayoutDashboard, Target, Award, Info
-} from 'lucide-react';
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Dashboard Ejecutivo de Ventas</title>
 
-const App = () => {
-  const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
-  const [activeTab, setActiveTab] = useState('resumen');
-  const [searchTerm, setSearchTerm] = useState('');
-  
-  const API_URL = "https://script.google.com/macros/s/AKfycbxyf7YwkmUG4MCj9Y46k7QU8QzfInK27mAcgsRuyoxL17FFX0IhdMVsWKTPKCcvK5Kx1w/exec";
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 
-  const fetchData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetch(API_URL);
-      const result = await response.json();
-      if (result.status === "error") throw new Error(result.message);
-      
-      const processedData = Array.isArray(result) 
-        ? result.sort((a, b) => (b.totalVendido || 0) - (a.totalVendido || 0)) 
-        : [];
-      setData(processedData);
-    } catch (err) {
-      setError("Error de conexión con la base de datos.");
-    } finally {
-      setLoading(false);
+<style>
+:root {
+  --primary: #1800ad;
+  --primary-dark: #12008a;
+  --gold: linear-gradient(135deg, #f5c542, #d4af37);
+  --bg: #f3f4f8;
+  --card: #ffffff;
+  --text: #0f172a;
+  --muted: #64748b;
+  --border: #e5e7eb;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 32px;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background: radial-gradient(circle at top, #ffffff, var(--bg));
+  color: var(--text);
+}
+
+/* HEADER */
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 36px;
+}
+
+h1 {
+  font-size: 28px;
+  margin: 0;
+}
+
+button {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  color: #fff;
+  border: none;
+  padding: 14px 22px;
+  border-radius: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 14px 35px rgba(24,0,173,.35);
+  transition: transform .2s, box-shadow .2s;
+}
+
+button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 45px rgba(24,0,173,.45);
+}
+
+/* KPI */
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit,minmax(240px,1fr));
+  gap: 28px;
+  margin-bottom: 42px;
+}
+
+.kpi {
+  background: var(--card);
+  padding: 26px;
+  border-radius: 22px;
+  box-shadow: 0 22px 55px rgba(0,0,0,.08);
+  position: relative;
+  overflow: hidden;
+}
+
+.kpi::after {
+  content: "";
+  position: absolute;
+  inset: auto -40% -60% auto;
+  width: 160%;
+  height: 160%;
+  background: radial-gradient(circle, rgba(24,0,173,.12), transparent 60%);
+}
+
+.kpi span {
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.kpi h2 {
+  margin-top: 12px;
+  font-size: 36px;
+  font-weight: 700;
+}
+
+/* PANEL */
+.panel {
+  background: var(--card);
+  border-radius: 26px;
+  box-shadow: 0 28px 70px rgba(0,0,0,.1);
+  padding: 30px;
+}
+
+.panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+input {
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  font-size: 14px;
+  width: 280px;
+}
+
+/* TABLE */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+thead {
+  background: linear-gradient(180deg, #fafafa, #f1f5f9);
+}
+
+th {
+  padding: 16px;
+  font-size: 13px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+td {
+  padding: 18px 16px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 500;
+}
+
+tr {
+  transition: background .2s, transform .15s;
+}
+
+tr:hover {
+  background: #f8fafc;
+  transform: scale(1.005);
+}
+
+/* RANK */
+.badge {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+}
+
+.gold {
+  background: var(--gold);
+  color: #5c4200;
+  box-shadow: 0 10px 30px rgba(212,175,55,.6);
+}
+
+.total {
+  font-weight: 700;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <div>
+    <h1>Panel Ejecutivo de Ventas</h1>
+    <small style="color:#64748b">Visualización dinámica en tiempo real</small>
+  </div>
+  <button onclick="cargar()">Actualizar</button>
+</header>
+
+<section class="kpis">
+  <div class="kpi"><span>Total Ventas</span><h2 id="total">0</h2></div>
+  <div class="kpi"><span>Vendedores Activos</span><h2 id="vendedores">0</h2></div>
+  <div class="kpi"><span>Mejor Venta</span><h2 id="mejor">0</h2></div>
+  <div class="kpi"><span>Ticket Promedio</span><h2 id="promedio">0</h2></div>
+</section>
+
+<section class="panel">
+  <div class="panel-header">
+    <h2>Ranking General</h2>
+    <input id="buscar" placeholder="Buscar vendedor">
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>#</th>
+        <th>Vendedor</th>
+        <th onclick="ordenar()">Total Vendido</th>
+      </tr>
+    </thead>
+    <tbody id="tabla"></tbody>
+  </table>
+</section>
+
+<script>
+const API = "https://script.google.com/macros/s/AKfycbxyf7YwkmUG4MCj9Y46k7QU8QzfInK27mAcgsRuyoxL17FFX0IhdMVsWKTPKCcvK5Kx1w/exec";
+let datos = [];
+let desc = true;
+
+function cargar(){
+  fetch(API).then(r=>r.json()).then(d=>{
+    datos = d;
+    kpis(d);
+    render(d);
+  });
+}
+
+function kpis(d){
+  const total = d.reduce((s,v)=>s+v.totalVendido,0);
+  document.getElementById("total").textContent = total.toLocaleString();
+  document.getElementById("vendedores").textContent = d.length;
+  document.getElementById("mejor").textContent = Math.max(...d.map(x=>x.totalVendido)).toLocaleString();
+  document.getElementById("promedio").textContent = Math.round(total/d.length).toLocaleString();
+}
+
+function render(d){
+  const tb = document.getElementById("tabla");
+  tb.innerHTML = "";
+  d.forEach((v,i)=>{
+    tb.innerHTML += `
+      <tr>
+        <td><div class="badge ${i===0?'gold':''}">${i+1}</div></td>
+        <td>${v.vendedor}</td>
+        <td class="total">${v.totalVendido.toLocaleString()}</td>
+      </tr>`;
+  });
+}
+
+function ordenar(){
+  desc = !desc;
+  datos.sort((a,b)=>desc?b.totalVendido-a.totalVendido:a.totalVendido-b.totalVendido);
+  render(datos);
+}
+
+document.getElementById("buscar").addEventListener("input",e=>{
+  const t = e.target.value.toLowerCase();
+  render(datos.filter(v=>v.vendedor.toLowerCase().includes(t)));
+});
+
+cargar();
+</script>
+
+</body>
+</html>
     }
   };
 
@@ -364,3 +589,4 @@ const MiniStatCard = ({ label, value, sub, icon }) => (
 );
 
 export default App;
+
