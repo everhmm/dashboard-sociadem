@@ -1,0 +1,366 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
+  PieChart, Pie, Sector, ScatterChart, Scatter, ZAxis
+} from 'recharts';
+import { 
+  Users, Ticket, TrendingUp, Loader2, RefreshCw, AlertCircle, 
+  Trophy, BarChart3, ListChecks, PieChart as PieIcon, 
+  Search, LayoutDashboard, Target, Award, Info
+} from 'lucide-react';
+
+const App = () => {
+  const [data, setData] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [activeTab, setActiveTab] = useState('resumen');
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const API_URL = "https://script.google.com/macros/s/AKfycbxyf7YwkmUG4MCj9Y46k7QU8QzfInK27mAcgsRuyoxL17FFX0IhdMVsWKTPKCcvK5Kx1w/exec";
+
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const response = await fetch(API_URL);
+      const result = await response.json();
+      if (result.status === "error") throw new Error(result.message);
+      
+      const processedData = Array.isArray(result) 
+        ? result.sort((a, b) => (b.totalVendido || 0) - (a.totalVendido || 0)) 
+        : [];
+      setData(processedData);
+    } catch (err) {
+      setError("Error de conexión con la base de datos.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const filteredData = useMemo(() => {
+    return data.filter(item => 
+      item.vendedor.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [data, searchTerm]);
+
+  const stats = useMemo(() => {
+    const totalTickets = data.reduce((acc, curr) => acc + (curr.totalVendido || 0), 0);
+    const mejorVendedor = data.length > 0 ? data[0] : { vendedor: 'N/A', totalVendido: 0 };
+    const promedioTickets = data.length > 0 ? totalTickets / data.length : 0;
+    const vendedoresActivos = data.filter(v => v.totalVendido > 0).length;
+    return { totalTickets, mejorVendedor, totalVendedores: data.length, promedioTickets, vendedoresActivos };
+  }, [data]);
+
+  const COLORS = ['#6366f1', '#8b5cf6', '#ec4899', '#f43f5e', '#f59e0b', '#10b981', '#06b6d4', '#84cc16'];
+
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-12">
+      {/* Navbar Superior */}
+      <nav className="bg-white border-b border-slate-200 sticky top-0 z-50">
+        <div className="max-w-7xl mx-auto px-4 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="bg-indigo-600 p-1.5 rounded-lg">
+              <Ticket className="text-white w-5 h-5" />
+            </div>
+            <span className="font-black text-xl tracking-tight text-slate-800">TICKET<span className="text-indigo-600">PRO</span></span>
+          </div>
+          <div className="flex items-center gap-4">
+            <div className="hidden md:flex relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+              <input 
+                type="text" 
+                placeholder="Buscar vendedor..."
+                className="pl-9 pr-4 py-2 bg-slate-100 border-none rounded-full text-sm focus:ring-2 focus:ring-indigo-500 w-64 transition-all"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            <button 
+              onClick={fetchData}
+              disabled={loading}
+              className="p-2 hover:bg-slate-100 rounded-full transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-5 h-5 text-slate-600 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      <div className="max-w-7xl mx-auto px-4 mt-6 space-y-6">
+        
+        {/* Banner de Bienvenida */}
+        <div className="bg-indigo-900 rounded-3xl p-8 text-white relative overflow-hidden shadow-2xl shadow-indigo-200">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div>
+              <h1 className="text-3xl font-black mb-2">Panel de Control Operativo</h1>
+              <p className="text-indigo-200 font-medium">Visualización en tiempo real de tickets y productividad por vendedor.</p>
+            </div>
+            <div className="flex gap-3">
+               <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10 min-w-[120px]">
+                  <p className="text-xs text-indigo-300 font-bold uppercase mb-1">Total Tickets</p>
+                  <p className="text-2xl font-black">{stats.totalTickets}</p>
+               </div>
+               <div className="bg-white/10 backdrop-blur-md p-4 rounded-2xl border border-white/10 min-w-[120px]">
+                  <p className="text-xs text-indigo-300 font-bold uppercase mb-1">Vendedores</p>
+                  <p className="text-2xl font-black">{stats.totalVendedores}</p>
+               </div>
+            </div>
+          </div>
+          {/* Decoración abstracta */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500 rounded-full blur-[100px] opacity-20 -mr-20 -mt-20"></div>
+        </div>
+
+        {/* Tabs de Navegación */}
+        <div className="flex bg-white p-1 rounded-2xl shadow-sm border border-slate-200 w-fit">
+          <TabButton active={activeTab === 'resumen'} onClick={() => setActiveTab('resumen')} icon={<LayoutDashboard size={18}/>} label="Resumen" />
+          <TabButton active={activeTab === 'analitica'} onClick={() => setActiveTab('analitica')} icon={<BarChart3 size={18}/>} label="Analítica" />
+          <TabButton active={activeTab === 'lista'} onClick={() => setActiveTab('lista')} icon={<ListChecks size={18}/>} label="Detalle" />
+        </div>
+
+        {/* Contenido Dinámico */}
+        {activeTab === 'resumen' && (
+          <div className="space-y-6 animate-in fade-in duration-500">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Gráfico Principal */}
+              <div className="lg:col-span-2 bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                <div className="flex justify-between items-center mb-6">
+                  <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                    <BarChart3 className="text-indigo-500" /> Rendimiento por Tickets
+                  </h3>
+                </div>
+                <div className="h-[400px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={filteredData.slice(0, 10)} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                      <XAxis dataKey="vendedor" axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#64748b'}} interval={0} angle={-15} textAnchor="end" height={60} />
+                      <YAxis axisLine={false} tickLine={false} tick={{fontSize: 11, fill: '#64748b'}} />
+                      <Tooltip 
+                        cursor={{fill: '#f1f5f9'}} 
+                        contentStyle={{borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)'}}
+                        formatter={(val) => [val, "Tickets"]}
+                      />
+                      <Bar dataKey="totalVendido" radius={[6, 6, 0, 0]} barSize={35}>
+                        {data.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.totalVendido > stats.promedioTickets ? '#6366f1' : '#cbd5e1'} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+
+              {/* Pie Chart: Cuota de Mercado Interno */}
+              <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+                <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-6">
+                  <PieIcon className="text-pink-500" /> Distribución %
+                </h3>
+                <div className="h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie
+                        data={data.filter(v => v.totalVendido > 0)}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        paddingAngle={5}
+                        dataKey="totalVendido"
+                        nameKey="vendedor"
+                      >
+                        {data.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="mt-4 space-y-2">
+                  <div className="flex justify-between text-sm items-center">
+                    <span className="text-slate-500">Tickets Promedio:</span>
+                    <span className="font-bold text-slate-800">{stats.promedioTickets.toFixed(1)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm items-center">
+                    <span className="text-slate-500">Actividad:</span>
+                    <span className="font-bold text-emerald-600">{((stats.vendedoresActivos / stats.totalVendedores) * 100).toFixed(0)}% del equipo</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Fila de Tarjetas Comparativas */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <MiniStatCard label="Mejor Vendedor" value={stats.mejorVendedor.vendedor} sub={stats.mejorVendedor.totalVendido + " tickets"} icon={<Award className="text-amber-500"/>} />
+              <MiniStatCard label="Meta Promedio" value={stats.promedioTickets.toFixed(1)} sub="Tickets por persona" icon={<Target className="text-indigo-500"/>} />
+              <MiniStatCard label="Tickets Totales" value={stats.totalTickets} sub="En sistema" icon={<Ticket className="text-rose-500"/>} />
+              <MiniStatCard label="Activos" value={stats.vendedoresActivos} sub={"de " + stats.totalVendedores + " totales"} icon={<Users className="text-blue-500"/>} />
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'analitica' && (
+          <div className="space-y-6 animate-in slide-in-from-bottom-4 duration-500">
+             <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
+                <div className="mb-8">
+                  <h3 className="text-xl font-black text-slate-800">Matriz de Rendimiento</h3>
+                  <p className="text-slate-500">Comparativa de volumen de tickets por vendedor</p>
+                </div>
+                <div className="h-[400px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <ScatterChart margin={{ top: 20, right: 20, bottom: 20, left: 20 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                      <XAxis type="category" dataKey="vendedor" name="Vendedor" />
+                      <YAxis type="number" dataKey="totalVendido" name="Tickets" unit=" uds" />
+                      <ZAxis type="number" dataKey="totalVendido" range={[100, 1000]} />
+                      <Tooltip cursor={{ strokeDasharray: '3 3' }} />
+                      <Scatter name="Vendedores" data={data} fill="#8b5cf6">
+                        {data.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                        ))}
+                      </Scatter>
+                    </ScatterChart>
+                  </ResponsiveContainer>
+                </div>
+             </div>
+
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="bg-emerald-50 p-6 rounded-3xl border border-emerald-100">
+                   <div className="flex items-center gap-4 mb-4">
+                      <div className="bg-emerald-500 p-2 rounded-xl text-white"><TrendingUp size={20}/></div>
+                      <h4 className="font-bold text-emerald-900 text-lg">Líderes de Eficiencia</h4>
+                   </div>
+                   <div className="space-y-3">
+                      {data.slice(0, 3).map((v, i) => (
+                        <div key={i} className="flex items-center justify-between bg-white/50 p-3 rounded-xl border border-emerald-200">
+                          <span className="font-bold text-emerald-800">{v.vendedor}</span>
+                          <span className="bg-emerald-500 text-white px-3 py-0.5 rounded-full text-xs font-black">{v.totalVendido} Tickets</span>
+                        </div>
+                      ))}
+                   </div>
+                </div>
+
+                <div className="bg-amber-50 p-6 rounded-3xl border border-amber-100">
+                   <div className="flex items-center gap-4 mb-4">
+                      <div className="bg-amber-500 p-2 rounded-xl text-white"><Info size={20}/></div>
+                      <h4 className="font-bold text-amber-900 text-lg">Aviso de Baja Actividad</h4>
+                   </div>
+                   <p className="text-sm text-amber-700 mb-4 font-medium">Los siguientes vendedores presentan 0 tickets o están por debajo del promedio ({stats.promedioTickets.toFixed(1)}):</p>
+                   <div className="flex flex-wrap gap-2">
+                      {data.filter(v => v.totalVendido === 0).map((v, i) => (
+                        <span key={i} className="bg-white px-3 py-1 rounded-full text-xs font-bold text-amber-600 border border-amber-200">{v.vendedor}</span>
+                      ))}
+                      {data.filter(v => v.totalVendido === 0).length === 0 && <span className="text-xs italic text-amber-600">No hay personal sin actividad.</span>}
+                   </div>
+                </div>
+             </div>
+          </div>
+        )}
+
+        {activeTab === 'lista' && (
+          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden animate-in fade-in duration-500">
+            <div className="p-6 border-b border-slate-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h3 className="text-lg font-black text-slate-800">Detalle Completo de Tickets</h3>
+                <p className="text-sm text-slate-500">Inventario de tickets procesados por cada integrante</p>
+              </div>
+              <div className="md:hidden relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 w-4 h-4" />
+                <input 
+                  type="text" 
+                  placeholder="Filtrar..."
+                  className="pl-9 pr-4 py-2 bg-slate-100 border-none rounded-xl text-sm w-full"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                />
+              </div>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-slate-50 text-left border-b border-slate-100">
+                    <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Rango</th>
+                    <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Vendedor</th>
+                    <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Tickets</th>
+                    <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Estado</th>
+                    <th className="px-6 py-4 text-xs font-black text-slate-400 uppercase tracking-widest">Desempeño</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                  {filteredData.map((item, i) => {
+                    const diff = item.totalVendido - stats.promedioTickets;
+                    return (
+                      <tr key={i} className="hover:bg-indigo-50/30 transition-colors group">
+                        <td className="px-6 py-4">
+                          <span className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center font-bold text-slate-500 group-hover:bg-white transition-colors">#{i+1}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          <div className="font-bold text-slate-700">{item.vendedor}</div>
+                        </td>
+                        <td className="px-6 py-4">
+                          <span className="font-black text-slate-900 text-lg">{item.totalVendido || 0}</span>
+                        </td>
+                        <td className="px-6 py-4">
+                          {item.totalVendido > 0 ? (
+                            <span className="px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black uppercase tracking-tight">Activo</span>
+                          ) : (
+                            <span className="px-3 py-1 rounded-full bg-slate-100 text-slate-400 text-[10px] font-black uppercase tracking-tight">Sin Ventas</span>
+                          )}
+                        </td>
+                        <td className="px-6 py-4">
+                           <div className="flex items-center gap-2">
+                             <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                <div 
+                                  className={`h-full rounded-full ${diff >= 0 ? 'bg-indigo-500' : 'bg-rose-400'}`}
+                                  style={{ width: `${Math.min(100, (item.totalVendido / (stats.mejorVendedor.totalVendido || 1)) * 100)}%` }}
+                                ></div>
+                             </div>
+                             <span className={`text-[10px] font-bold ${diff >= 0 ? 'text-indigo-600' : 'text-rose-500'}`}>
+                               {diff >= 0 ? `+${diff.toFixed(0)}` : diff.toFixed(0)}
+                             </span>
+                           </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+      </div>
+    </div>
+  );
+};
+
+// Componentes Auxiliares
+const TabButton = ({ active, onClick, icon, label }) => (
+  <button 
+    onClick={onClick}
+    className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all ${
+      active 
+      ? 'bg-indigo-600 text-white shadow-md' 
+      : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+    }`}
+  >
+    {icon}
+    {label}
+  </button>
+);
+
+const MiniStatCard = ({ label, value, sub, icon }) => (
+  <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-sm flex items-center gap-4">
+    <div className="bg-slate-50 p-3 rounded-2xl">{icon}</div>
+    <div>
+      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{label}</p>
+      <p className="text-lg font-black text-slate-800 leading-tight">{value}</p>
+      <p className="text-[10px] text-slate-500 font-medium italic">{sub}</p>
+    </div>
+  </div>
+);
+
+export default App;
